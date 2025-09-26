@@ -26,7 +26,7 @@ class RayEventBroadcaster:
         self.max_history = 1000  # Keep last 1000 events
         logger.info("RayEventBroadcaster initialized")
     
-    def add_subscriber(self, subscriber_id: str, callback_id: str, worker_id: str = None) -> bool:
+    def add_subscriber(self, subscriber_id: str, callback_id: str, worker_id: Optional[str] = None) -> bool:
         """Add a subscriber to the event broadcasting system."""
         try:
             if subscriber_id not in self.subscribers:
@@ -98,10 +98,11 @@ class RayEventBroadcaster:
     
     def get_subscriber_stats(self) -> Dict[str, Any]:
         """Get statistics about current subscribers."""
+        active_workers: Set[str] = set()
         stats = {
             'total_subscribers': 0,
             'subscribers_by_type': {},
-            'active_workers': set(),
+            'active_workers': active_workers,
             'event_history_size': len(self.event_history),
             'subscriber_details': {}
         }
@@ -169,7 +170,7 @@ class RayEventStream:
                 return
             
             # Create broadcaster actor
-            self.broadcaster = RayEventBroadcaster.remote()
+            self.broadcaster = ray.remote(RayEventBroadcaster).remote()
             
             # Start event subscription system
             await self._start_event_subscription()

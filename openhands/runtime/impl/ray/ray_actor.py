@@ -5,7 +5,7 @@ import os
 import subprocess
 import tempfile
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import logging
 
 import ray
@@ -179,9 +179,9 @@ class RayExecutionActor:
         self, 
         file_path: str, 
         new_str: str, 
-        old_str: str = None,
-        start_line: int = None, 
-        end_line: int = None
+        old_str: Optional[str] = None,
+        start_line: Optional[int] = None, 
+        end_line: Optional[int] = None
     ) -> dict[str, Any]:
         """Edit a file with string replacement or line-based editing."""
         try:
@@ -241,7 +241,7 @@ class RayExecutionActor:
                 'error': str(e),
             }
     
-    async def run_ipython(self, code: str, kernel_init_code: str = None) -> dict[str, Any]:
+    async def run_ipython(self, code: str, kernel_init_code: Optional[str] = None) -> dict[str, Any]:
         """Run IPython code (placeholder implementation)."""
         try:
             # For now, just echo the code as this is a basic implementation
@@ -257,7 +257,7 @@ class RayExecutionActor:
             
             # Use exec for simple Python code execution
             # Note: This is a simplified implementation
-            local_vars = {}
+            local_vars: Dict[str, Any] = {}
             global_vars = {'__builtins__': __builtins__}
             
             try:

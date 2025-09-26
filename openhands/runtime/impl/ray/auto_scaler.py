@@ -5,10 +5,11 @@ import logging
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional, Callable, Union
 import threading
 
 import ray
+from ray.actor import ActorHandle
 
 logger = logging.getLogger(__name__)
 
@@ -311,8 +312,8 @@ class AutoScalingManager:
         """
         self.config = config
         self.worker_pool = worker_pool
-        self.auto_scaler = None
-        self.monitoring_task = None
+        self.auto_scaler: Optional[ActorHandle] = None
+        self.monitoring_task: Optional[asyncio.Task[None]] = None
         self.scaling_callbacks: List[Callable] = []
         self._running = False
         self._lock = threading.Lock()
@@ -327,7 +328,7 @@ class AutoScalingManager:
                 return
             
             # Create auto-scaler actor
-            self.auto_scaler = RayAutoScaler.remote(self.config)
+            self.auto_scaler = ray.remote(RayAutoScaler).remote(self.config)
             
             # Start monitoring loop
             self._running = True
@@ -344,7 +345,7 @@ class AutoScalingManager:
         while self._running:
             try:
                 # Collect current metrics from worker pool
-                if self.worker_pool:
+                if self.worker_pool and self.auto_scaler:
                     worker_stats = self.worker_pool.get_pool_stats()
                     
                     # Get metrics from auto-scaler
@@ -358,9 +359,10 @@ class AutoScalingManager:
                         success = await self._execute_scaling(direction, amount, metrics)
                         
                         reason = self._get_scaling_reason(direction, metrics)
-                        ray.get(self.auto_scaler.record_scaling_decision.remote(
-                            direction, amount, reason, success
-                        ))
+                        if self.auto_scaler:
+                            ray.get(self.auto_scaler.record_scaling_decision.remote(
+                                direction, amount, reason, success
+                            ))
                         
                         # Notify callbacks
                         self._notify_scaling_callbacks(direction, amount, success)

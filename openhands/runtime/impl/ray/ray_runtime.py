@@ -17,6 +17,17 @@ from openhands.core.exceptions import (
 )
 from openhands.core.logger import openhands_logger as logger
 from openhands.events import EventStream
+from openhands.events.event import Event, EventSource
+from openhands.events.observation import (
+    BrowserOutputObservation,
+    CmdOutputObservation,
+    ErrorObservation,
+    FileEditObservation,
+    FileReadObservation,
+    FileWriteObservation,
+    IPythonRunCellObservation,
+    Observation,
+)
 from openhands.integrations.provider import PROVIDER_TOKEN_TYPE
 from openhands.llm.llm_registry import LLMRegistry
 from openhands.runtime.impl.action_execution.action_execution_client import (
@@ -212,7 +223,7 @@ class RayRuntime(ActionExecutionClient):
                 logger.info("Ray runtime connected successfully")
                 self._runtime_initialized = True
                 if self.status_callback:
-                    self.status_callback('info', RuntimeStatus.RUNNING, 'Ray runtime connected')
+                    self.status_callback('info', RuntimeStatus.RUNTIME_STARTED, 'Ray runtime connected')
             else:
                 raise AgentRuntimeError(f"Ray worker pool connection test failed: {result}")
                 
@@ -319,7 +330,7 @@ class RayRuntime(ActionExecutionClient):
                 asyncio.set_event_loop(new_loop)
                 try:
                     return new_loop.run_until_complete(
-                        self.worker_pool.execute_action(action_data, session_id or self.session_id, timeout)
+                        self.worker_pool.execute_action(action_data, session_id or self.session_id, timeout or 60.0)
                     )
                 finally:
                     new_loop.close()
@@ -335,7 +346,7 @@ class RayRuntime(ActionExecutionClient):
             asyncio.set_event_loop(loop)
             try:
                 return loop.run_until_complete(
-                    self.worker_pool.execute_action(action_data, session_id or self.session_id, timeout)
+                    self.worker_pool.execute_action(action_data, session_id or self.session_id, timeout or 60.0)
                 )
             finally:
                 loop.close()
@@ -513,7 +524,8 @@ class RayRuntime(ActionExecutionClient):
                 return BrowserOutputObservation(
                     content=result.get('content', ''),
                     url=action.url,
-                    screenshot=result.get('screenshot'),
+                    trigger_by_action=action.id,
+                    screenshot=result.get('screenshot', ''),
                 )
             else:
                 return ErrorObservation(
@@ -544,7 +556,8 @@ class RayRuntime(ActionExecutionClient):
                 return BrowserOutputObservation(
                     content=result.get('content', ''),
                     url=result.get('url', ''),
-                    screenshot=result.get('screenshot'),
+                    trigger_by_action=action.id,
+                    screenshot=result.get('screenshot', ''),
                 )
             else:
                 return ErrorObservation(

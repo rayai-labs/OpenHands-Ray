@@ -90,8 +90,8 @@ class RayWorkerPool:
         selection_strategy: WorkerSelectionStrategy = WorkerSelectionStrategy.LEAST_BUSY,
         health_check_interval: float = 30.0,
         session_timeout: float = 1800.0,  # 30 minutes
-        workspace_path: str = None,
-        env_vars: dict = None
+        workspace_path: Optional[str] = None,
+        env_vars: Optional[dict] = None
     ):
         self.pool_size = pool_size
         self.max_pool_size = max_pool_size
@@ -134,7 +134,7 @@ class RayWorkerPool:
         
         try:
             # Create Ray actor with workspace and environment
-            actor_ref = RayExecutionActor.remote(
+            actor_ref = ray.remote(RayExecutionActor).remote(
                 workspace_path=self.workspace_path,
                 env_vars=self.env_vars
             )
